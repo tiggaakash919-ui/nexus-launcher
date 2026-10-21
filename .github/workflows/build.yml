@@ -16,25 +16,718 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Unzip project
+      - name: Remove old zip
+        run: rm -f *.zip
+
+      - name: Generate Complete Project
         run: |
-          # Koi bhi ZIP file dhoondho
-          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
-          if [ -z "$ZIP_FILE" ]; then
-            echo "No ZIP file found in root!"
-            exit 1
-          fi
-          echo "Extracting $ZIP_FILE"
-          unzip -o "$ZIP_FILE" -d extracted
-          
-          # settings.gradle.kts wala folder dhoondho
-          PROJECT_DIR=$(find extracted -name "settings.gradle.kts" -exec dirname {} \; | head -n 1)
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "Could not find settings.gradle.kts!"
-            exit 1
-          fi
-          echo "Found project directory: $PROJECT_DIR"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          mkdir -p app/src/main/java/com/nexus/launcher/data
+          mkdir -p app/src/main/java/com/nexus/launcher/metrics
+          mkdir -p app/src/main/java/com/nexus/launcher/profile
+          mkdir -p app/src/main/java/com/nexus/launcher/recommend
+          mkdir -p app/src/main/java/com/nexus/launcher/ui/theme
+          mkdir -p app/src/main/java/com/nexus/launcher/ui/components
+          mkdir -p app/src/main/java/com/nexus/launcher/ui/screens
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-anydpi-v26
+          mkdir -p app/src/test/java/com/nexus/launcher
+
+          cat << 'EOF' > settings.gradle.kts
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name = "NexusLauncher"
+          include(":app")
+          EOF
+
+          cat << 'EOF' > build.gradle.kts
+          plugins {
+              id("com.android.application") version "8.7.1" apply false
+              id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+              id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
+          }
+          EOF
+
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          kotlin.code.style=official
+          android.nonTransitiveRClass=true
+          EOF
+
+          cat << 'EOF' > app/build.gradle.kts
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+              id("org.jetbrains.kotlin.plugin.compose")
+          }
+          android {
+              namespace = "com.nexus.launcher"
+              compileSdk = 35
+              defaultConfig {
+                  applicationId = "com.nexus.launcher"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0.0"
+              }
+              compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+              kotlinOptions { jvmTarget = "17" }
+              buildFeatures { compose = true }
+              testOptions { unitTests.isReturnDefaultValues = true }
+          }
+          dependencies {
+              val composeBom = platform("androidx.compose:compose-bom:2024.09.03")
+              implementation(composeBom)
+              implementation("androidx.core:core-ktx:1.13.1")
+              implementation("androidx.activity:activity-compose:1.9.2")
+              implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+              implementation("androidx.compose.ui:ui")
+              implementation("androidx.compose.material3:material3")
+              implementation("androidx.compose.material:material-icons-extended")
+              implementation("androidx.navigation:navigation-compose:2.8.1")
+              implementation("androidx.datastore:datastore-preferences:1.1.4")
+              testImplementation("junit:junit:4.13.2")
+              testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+              <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+              <queries>
+                  <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent>
+                  <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.GAME" /></intent>
+              </queries>
+              <application android:name=".NexusApplication" android:allowBackup="false" android:icon="@mipmap/ic_launcher" android:label="NEXUS" android:theme="@style/Theme.Nexus">
+                  <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask" android:stateNotNeeded="true" android:configChanges="orientation|screenSize|keyboardHidden">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.HOME" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/values/strings.xml
+          <resources><string name="app_name">NEXUS</string></resources>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/values/themes.xml
+          <resources><style name="Theme.Nexus" parent="android:Theme.Material.NoActionBar"><item name="android:windowBackground">#0A0A0F</item></style></resources>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/drawable/ic_launcher_foreground.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#22D3EE" android:pathData="M30,78 L30,30 L44,30 L44,60 L64,30 L78,30 L78,78 L64,78 L64,48 L44,78 Z" /></vector>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/drawable/ic_launcher_background.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#0A0A0F" android:pathData="M0,0 h108 v108 h-108 Z" /></vector>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background" /><foreground android:drawable="@drawable/ic_launcher_foreground" /></adaptive-icon>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background" /><foreground android:drawable="@drawable/ic_launcher_foreground" /></adaptive-icon>
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/NexusApplication.kt
+          package com.nexus.launcher
+          import android.app.Application
+          class NexusApplication : Application()
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/MainActivity.kt
+          package com.nexus.launcher
+          import android.os.Bundle
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import androidx.activity.viewModels
+          import androidx.compose.runtime.collectAsState
+          import androidx.compose.runtime.getValue
+          import com.nexus.launcher.ui.NexusApp
+          import com.nexus.launcher.ui.theme.NexusTheme
+          class MainActivity : ComponentActivity() {
+              private val viewModel: NexusViewModel by viewModels()
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContent {
+                      val settings by viewModel.settings.collectAsState()
+                      NexusTheme(darkTheme = settings.darkTheme) { NexusApp(viewModel = viewModel) }
+                  }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/NexusViewModel.kt
+          package com.nexus.launcher
+          import android.app.Application
+          import androidx.lifecycle.AndroidViewModel
+          import androidx.lifecycle.viewModelScope
+          import com.nexus.launcher.data.*
+          import com.nexus.launcher.metrics.*
+          import com.nexus.launcher.profile.*
+          import com.nexus.launcher.recommend.*
+          import kotlinx.coroutines.flow.*
+          import kotlinx.coroutines.launch
+          class NexusViewModel(app: Application) : AndroidViewModel(app) {
+              private val appsRepo = AppRepository(app)
+              private val gamesRepo = GameRepository(app)
+              private val settingsRepo = SettingsRepository(app)
+              private val monitor = PerformanceMonitor(app)
+              private val recommender = RecommendationEngine()
+              val settings: StateFlow<NexusSettings> = settingsRepo.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NexusSettings())
+              private val _apps = MutableStateFlow<List<AppInfo>>(emptyList()); val apps = _apps.asStateFlow()
+              private val _games = MutableStateFlow<List<AppInfo>>(emptyList()); val games = _games.asStateFlow()
+              private val _snapshot = MutableStateFlow<PerformanceSnapshot?>(null); val snapshot = _snapshot.asStateFlow()
+              private val _recs = MutableStateFlow<List<Recommendation>>(emptyList()); val recommendations = _recs.asStateFlow()
+              init { refreshApps(); collectBattery() }
+              fun refreshApps() = viewModelScope.launch { _apps.value = appsRepo.loadLaunchable(); _games.value = gamesRepo.discoverGames() }
+              private fun collectBattery() = viewModelScope.launch { monitor.batteryFlow().collect { publishSnapshot(it) } }
+              fun sampleMetrics() { publishSnapshot(currentBattery ?: BatteryReading(null, null, null)) }
+              private var currentBattery: BatteryReading? = null
+              private fun publishSnapshot(battery: BatteryReading) {
+                  currentBattery = battery
+                  val mem = monitor.memory()
+                  _snapshot.value = PerformanceSnapshot(mem, battery, monitor.thermal(), monitor.uptimeMillis(), monitor.capabilities())
+                  _recs.value = recommender.evaluate(mem, battery)
+              }
+              fun launchApp(pkg: String) = appsRepo.launch(pkg)
+              fun setProfile(p: GamingProfile) = viewModelScope.launch { settingsRepo.setProfile(p) }
+              fun setDarkTheme(v: Boolean) = viewModelScope.launch { settingsRepo.setDarkTheme(v) }
+              fun setShowClock(v: Boolean) = viewModelScope.launch { settingsRepo.setShowClock(v) }
+              fun toggleFavoriteApp(pkg: String) = viewModelScope.launch { settingsRepo.toggleFavoriteApp(pkg) }
+              fun toggleFavoriteGame(pkg: String) = viewModelScope.launch { settingsRepo.toggleFavoriteGame(pkg) }
+              fun profileExplanation(p: GamingProfile) = ProfileManager.explain(p)
+          }
+          EOF
+
+          # --- DATA LAYER ---
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/data/AppInfo.kt
+          package com.nexus.launcher.data
+          import android.graphics.drawable.Drawable
+          data class AppInfo(val packageName: String, val label: String, val icon: Drawable, val isGame: Boolean = false)
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/data/AppRepository.kt
+          package com.nexus.launcher.data
+          import android.content.Context
+          import android.content.Intent
+          import android.content.pm.PackageManager
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.withContext
+          sealed interface LaunchResult { object Success : LaunchResult; object NoIntent : LaunchResult; data class Error(val message: String) : LaunchResult }
+          class AppRepository(private val context: Context) {
+              suspend fun loadLaunchable(): List<AppInfo> = withContext(Dispatchers.IO) {
+                  val pm = context.packageManager
+                  pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), PackageManager.MATCH_ALL).mapNotNull { ri ->
+                      val pkg = ri.activityInfo?.packageName ?: return@mapNotNull null
+                      if (pkg == context.packageName) return@mapNotNull null
+                      AppInfo(pkg, ri.loadLabel(pm).toString(), ri.loadIcon(pm))
+                  }.distinctBy { it.packageName }.sortedBy { it.label.lowercase() }
+              }
+              fun launch(packageName: String): LaunchResult {
+                  val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return LaunchResult.NoIntent
+                  intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                  return try { context.startActivity(intent); LaunchResult.Success } catch (e: Exception) { LaunchResult.Error(e.message ?: "Error") }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/data/GameRepository.kt
+          package com.nexus.launcher.data
+          import android.content.Context
+          import android.content.Intent
+          import android.content.pm.PackageManager
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.withContext
+          class GameRepository(private val context: Context) {
+              suspend fun discoverGames(): List<AppInfo> = withContext(Dispatchers.IO) {
+                  val pm = context.packageManager
+                  val byCategory = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_GAME), PackageManager.MATCH_ALL).mapNotNull { it.activityInfo?.packageName }.toSet()
+                  val byMeta = mutableSetOf<String>()
+                  for (app in pm.getInstalledApplications(PackageManager.GET_META_DATA)) {
+                      if (app.metaData?.getString("android.app.category") == "game") byMeta += app.packageName
+                  }
+                  (byCategory + byMeta).mapNotNull { pkg ->
+                      val ai = runCatching { pm.getApplicationInfo(pkg, 0) }.getOrNull() ?: return@mapNotNull null
+                      if (pm.getLaunchIntentForPackage(pkg) == null) return@mapNotNull null
+                      AppInfo(pkg, ai.loadLabel(pm).toString(), ai.loadIcon(pm), true)
+                  }.distinctBy { it.packageName }.sortedBy { it.label.lowercase() }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/data/SettingsRepository.kt
+          package com.nexus.launcher.data
+          import android.content.Context
+          import androidx.datastore.preferences.core.*
+          import androidx.datastore.preferences.preferencesDataStore
+          import com.nexus.launcher.profile.GamingProfile
+          import kotlinx.coroutines.flow.Flow
+          import kotlinx.coroutines.flow.map
+          private val Context.dataStore by preferencesDataStore("nexus_settings")
+          data class NexusSettings(val darkTheme: Boolean = true, val profile: GamingProfile = GamingProfile.BALANCED, val gridColumns: Int = 4, val showClock: Boolean = true, val favoriteApps: Set<String> = emptySet(), val favoriteGames: Set<String> = emptySet())
+          class SettingsRepository(private val context: Context) {
+              private object K { val DARK = booleanPreferencesKey("dark"); val PROF = stringPreferencesKey("prof"); val COLS = intPreferencesKey("cols"); val CLOCK = booleanPreferencesKey("clock"); val FAV = stringSetPreferencesKey("fav"); val FG = stringSetPreferencesKey("fg") }
+              val settings: Flow<NexusSettings> = context.dataStore.data.map { p ->
+                  NexusSettings(p[K.DARK] ?: true, runCatching { GamingProfile.valueOf(p[K.PROF] ?: "") }.getOrDefault(GamingProfile.BALANCED), (p[K.COLS] ?: 4).coerceIn(3, 6), p[K.CLOCK] ?: true, p[K.FAV] ?: emptySet(), p[K.FG] ?: emptySet())
+              }
+              suspend fun setDarkTheme(v: Boolean) = context.dataStore.edit { it[K.DARK] = v }
+              suspend fun setProfile(v: GamingProfile) = context.dataStore.edit { it[K.PROF] = v.name }
+              suspend fun setShowClock(v: Boolean) = context.dataStore.edit { it[K.CLOCK] = v }
+              suspend fun toggleFavoriteApp(pkg: String) = context.dataStore.edit { val c = it[K.FAV] ?: emptySet(); it[K.FAV] = if (pkg in c) c - pkg else c + pkg }
+              suspend fun toggleFavoriteGame(pkg: String) = context.dataStore.edit { val c = it[K.FG] ?: emptySet(); it[K.FG] = if (pkg in c) c - pkg else c + pkg }
+          }
+          EOF
+
+          # --- METRICS, PROFILE & RECOMMENDATIONS ---
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/metrics/Capability.kt
+          package com.nexus.launcher.metrics
+          enum class Capability { MEMORY, BATTERY_LEVEL, BATTERY_TEMPERATURE, THERMAL_STATUS, UPTIME }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/metrics/PerformanceSnapshot.kt
+          package com.nexus.launcher.metrics
+          data class MemoryReading(val totalBytes: Long, val availableBytes: Long, val lowMemory: Boolean) {
+              val usedBytes: Long get() = totalBytes - availableBytes
+              val usedRatio: Float get() = if (totalBytes <= 0L) 0f else usedBytes.toFloat() / totalBytes
+          }
+          data class BatteryReading(val levelPercent: Int?, val temperatureC: Float?, val charging: Boolean?)
+          data class ThermalReading(val status: Int?) {
+              fun label(): String = when (status) { null -> "Unavailable"; 0 -> "None"; 1 -> "Light"; 2 -> "Moderate"; 3 -> "Severe"; else -> "Unknown" }
+          }
+          data class PerformanceSnapshot(val memory: MemoryReading?, val battery: BatteryReading?, val thermal: ThermalReading?, val uptimeMillis: Long?, val capabilities: Set<Capability>)
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/metrics/PerformanceMonitor.kt
+          package com.nexus.launcher.metrics
+          import android.app.ActivityManager
+          import android.content.*
+          import android.os.*
+          import kotlinx.coroutines.channels.awaitClose
+          import kotlinx.coroutines.flow.*
+          class PerformanceMonitor(private val context: Context) {
+              fun memory(): MemoryReading? {
+                  val am = context.getSystemService(ActivityManager::class.java) ?: return null
+                  val info = ActivityManager.MemoryInfo(); am.getMemoryInfo(info)
+                  return if (info.totalMem <= 0L) null else MemoryReading(info.totalMem, info.availMem, info.lowMemory)
+              }
+              fun thermal(): ThermalReading? {
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+                  val pm = context.getSystemService(PowerManager::class.java) ?: return null
+                  return ThermalReading(pm.currentThermalStatus)
+              }
+              fun uptimeMillis(): Long? = SystemClock.elapsedRealtime()
+              fun batteryFlow(): Flow<BatteryReading> = callbackFlow {
+                  val receiver = object : BroadcastReceiver() {
+                      override fun onReceive(c: Context?, i: Intent?) {
+                          if (i == null) return
+                          val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                          val scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+                          val tenths = i.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+                          val status = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                          trySend(BatteryReading(if (level >= 0 && scale > 0) level * 100 / scale else null, if (tenths != Int.MIN_VALUE) tenths / 10f else null, when (status) { BatteryManager.BATTERY_STATUS_CHARGING, BatteryManager.BATTERY_STATUS_FULL -> true; BatteryManager.BATTERY_STATUS_DISCHARGING -> false; else -> null }))
+                      }
+                  }
+                  context.registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                  awaitClose { context.unregisterReceiver(receiver) }
+              }
+              fun capabilities(): Set<Capability> = buildSet {
+                  if (context.getSystemService(ActivityManager::class.java) != null) add(Capability.MEMORY)
+                  add(Capability.BATTERY_LEVEL); add(Capability.BATTERY_TEMPERATURE)
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) add(Capability.THERMAL_STATUS)
+                  add(Capability.UPTIME)
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/profile/GamingProfile.kt
+          package com.nexus.launcher.profile
+          enum class GamingProfile(val label: String) { BALANCED("Balanced"), GAMING("Gaming"), BATTERY_SAVER("Battery Saver"), CUSTOM("Custom") }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/profile/ProfileManager.kt
+          package com.nexus.launcher.profile
+          data class ProfileConfig(val monitoringIntervalMs: Long, val animationsEnabled: Boolean, val showDashboardOnLaunch: Boolean)
+          object ProfileManager {
+              fun configFor(profile: GamingProfile): ProfileConfig = when (profile) {
+                  GamingProfile.BALANCED -> ProfileConfig(5000L, true, false)
+                  GamingProfile.GAMING -> ProfileConfig(3000L, false, true)
+                  GamingProfile.BATTERY_SAVER -> ProfileConfig(15000L, false, false)
+                  GamingProfile.CUSTOM -> ProfileConfig(5000L, true, false)
+              }
+              fun explain(profile: GamingProfile): String = when (profile) {
+                  GamingProfile.BALANCED -> "Default monitoring every 5s. No system settings modified."
+                  GamingProfile.GAMING -> "NEXUS polls every 3s and disables its own animations. Does NOT change CPU, GPU, or refresh-rate."
+                  GamingProfile.BATTERY_SAVER -> "NEXUS polls every 15s. Battery and thermal protections remain untouched."
+                  GamingProfile.CUSTOM -> "Custom interval and animation behavior."
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/recommend/Recommendation.kt
+          package com.nexus.launcher.recommend
+          enum class Severity { INFO, WARN }
+          data class Recommendation(val title: String, val body: String, val severity: Severity)
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/recommend/RecommendationEngine.kt
+          package com.nexus.launcher.recommend
+          import com.nexus.launcher.metrics.BatteryReading
+          import com.nexus.launcher.metrics.MemoryReading
+          class RecommendationEngine {
+              fun evaluate(memory: MemoryReading?, battery: BatteryReading?): List<Recommendation> {
+                  val out = mutableListOf<Recommendation>()
+                  if (memory != null && memory.usedRatio >= 0.85f) out += Recommendation("High memory pressure", "Memory >85%. Close unused apps.", Severity.WARN)
+                  battery?.temperatureC?.let { if (it >= 42f) out += Recommendation("Device is warm", "Pause intensive use. Do not disable thermal protection.", Severity.WARN) }
+                  battery?.levelPercent?.let { if (it <= 15 && battery.charging == false) out += Recommendation("Low battery", "Enable Battery Saver.", Severity.INFO) }
+                  return out
+              }
+          }
+          EOF
+
+          # --- UI LAYER ---
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/theme/Theme.kt
+          package com.nexus.launcher.ui.theme
+          import androidx.compose.foundation.isSystemInDarkTheme
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.Composable
+          import androidx.compose.ui.graphics.Color
+          private val Cyan = Color(0xFF22D3EE); private val Violet = Color(0xFFA78BFA); private val BgDark = Color(0xFF0A0A0F); private val SurfaceDark = Color(0xFF16161D)
+          private val DarkScheme = darkColorScheme(primary = Cyan, secondary = Violet, background = BgDark, surface = SurfaceDark, onPrimary = Color.Black, onSecondary = Color.Black, onBackground = Color(0xFFE5E7EB), onSurface = Color(0xFFE5E7EB))
+          private val LightScheme = lightColorScheme(primary = Cyan, secondary = Violet)
+          @Composable fun NexusTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+              MaterialTheme(colorScheme = if (darkTheme) DarkScheme else LightScheme, content = content)
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/Routes.kt
+          package com.nexus.launcher.ui
+          object Routes { const val HOME = "home"; const val DRAWER = "drawer"; const val DASHBOARD = "dashboard"; const val GAMING = "gaming"; const val SETTINGS = "settings" }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/NexusApp.kt
+          package com.nexus.launcher.ui
+          import androidx.compose.runtime.Composable
+          import androidx.navigation.compose.*
+          import com.nexus.launcher.NexusViewModel
+          import com.nexus.launcher.ui.screens.*
+          @Composable fun NexusApp(viewModel: NexusViewModel) {
+              val nav = rememberNavController()
+              NavHost(navController = nav, startDestination = Routes.HOME) {
+                  composable(Routes.HOME) { HomeScreen(viewModel, { nav.navigate(Routes.DRAWER) }, { nav.navigate(Routes.GAMING) }, { nav.navigate(Routes.DASHBOARD) }, { nav.navigate(Routes.SETTINGS) }) }
+                  composable(Routes.DRAWER) { AppDrawerScreen(viewModel, { nav.popBackStack() }) }
+                  composable(Routes.DASHBOARD) { DashboardScreen(viewModel, { nav.popBackStack() }) }
+                  composable(Routes.GAMING) { GamingHubScreen(viewModel, { nav.popBackStack() }) }
+                  composable(Routes.SETTINGS) { SettingsScreen(viewModel, { nav.popBackStack() }) }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/components/AppIcon.kt
+          package com.nexus.launcher.ui.components
+          import android.graphics.*
+          import android.graphics.drawable.Drawable
+          import androidx.compose.foundation.Image
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.shape.RoundedCornerShape
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.draw.clip
+          import androidx.compose.ui.graphics.*
+          import androidx.compose.ui.layout.ContentScale
+          import androidx.compose.ui.text.style.TextOverflow
+          import androidx.compose.ui.unit.dp
+          private fun Drawable.toImageBitmap(sizePx: Int = 144): ImageBitmap {
+              val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888); setBounds(0, 0, sizePx, sizePx); draw(Canvas(bmp)); return bmp.asImageBitmap()
+          }
+          @Composable fun AppIcon(label: String, drawable: Drawable, modifier: Modifier = Modifier, showLabel: Boolean = true) {
+              val bmp = remember(drawable) { drawable.toImageBitmap() }
+              Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.padding(4.dp)) {
+                  Image(bitmap = bmp, contentDescription = label, contentScale = ContentScale.Fit, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)))
+                  if (showLabel) Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/components/Clock.kt
+          package com.nexus.launcher.ui.components
+          import androidx.compose.runtime.*
+          import kotlinx.coroutines.delay
+          import java.time.LocalDateTime
+          import java.time.format.DateTimeFormatter
+          @Composable fun rememberCurrentTime(): String {
+              var now by remember { mutableStateOf(LocalDateTime.now()) }; LaunchedEffect(Unit) { while (true) { now = LocalDateTime.now(); delay(1000L) } }
+              return now.format(DateTimeFormatter.ofPattern("HH:mm"))
+          }
+          @Composable fun rememberCurrentDate(): String {
+              var now by remember { mutableStateOf(LocalDateTime.now()) }; LaunchedEffect(Unit) { while (true) { now = LocalDateTime.now(); delay(60000L) } }
+              return now.format(DateTimeFormatter.ofPattern("EEE, d MMM"))
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/screens/HomeScreen.kt
+          package com.nexus.launcher.ui.screens
+          import android.widget.Toast
+          import androidx.compose.foundation.clickable
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.lazy.grid.*
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.*
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.unit.dp
+          import com.nexus.launcher.NexusViewModel
+          import com.nexus.launcher.data.LaunchResult
+          import com.nexus.launcher.ui.components.*
+          @Composable fun HomeScreen(viewModel: NexusViewModel, onOpenDrawer: () -> Unit, onOpenGaming: () -> Unit, onOpenDashboard: () -> Unit, onOpenSettings: () -> Unit) {
+              val context = LocalContext.current; val apps by viewModel.apps.collectAsState(); val settings by viewModel.settings.collectAsState()
+              val favorites = apps.filter { it.packageName in settings.favoriteApps }
+              var query by remember { mutableStateOf("") }
+              val filtered = if (query.isBlank()) favorites else apps.filter { it.label.contains(query, true) }
+              Column(Modifier.fillMaxSize().padding(24.dp)) {
+                  Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                      Column {
+                          if (settings.showClock) Text(rememberCurrentTime(), style = MaterialTheme.typography.displayMedium)
+                          Text(rememberCurrentDate(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                      }
+                      Row {
+                          IconButton(onClick = onOpenDashboard) { Icon(Icons.Default.Speed, "Dashboard") }
+                          IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, "Settings") }
+                      }
+                  }
+                  Spacer(Modifier.height(24.dp))
+                  OutlinedTextField(query, { query = it }, placeholder = { Text("Search apps") }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge)
+                  Spacer(Modifier.height(16.dp))
+                  FilledTonalButton(onClick = onOpenGaming, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.SportsEsports, null); Spacer(Modifier.width(8.dp)); Text("Gaming Hub") }
+                  Spacer(Modifier.height(16.dp))
+                  if (filtered.isEmpty()) Text("No favorites yet. Long-press an app in drawer to add.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                  else LazyVerticalGrid(columns = GridCells.Fixed(settings.gridColumns), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                      items(filtered, key = { it.packageName }) { app ->
+                          Box(Modifier.clickable {
+                              when (val r = viewModel.launchApp(app.packageName)) {
+                                  LaunchResult.Success -> Unit
+                                  LaunchResult.NoIntent -> Toast.makeText(context, "Cannot launch", Toast.LENGTH_SHORT).show()
+                                  is LaunchResult.Error -> Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
+                              }
+                          }) { AppIcon(label = app.label, drawable = app.icon) }
+                      }
+                  }
+                  Spacer(Modifier.weight(1f))
+                  TextButton(onClick = onOpenDrawer, modifier = Modifier.fillMaxWidth()) { Text("All apps") }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/screens/AppDrawerScreen.kt
+          package com.nexus.launcher.ui.screens
+          import android.widget.Toast
+          import androidx.compose.foundation.ExperimentalFoundationApi
+          import androidx.compose.foundation.combinedClickable
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.lazy.grid.*
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.ArrowBack
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.unit.dp
+          import com.nexus.launcher.NexusViewModel
+          import com.nexus.launcher.data.LaunchResult
+          import com.nexus.launcher.ui.components.AppIcon
+          @OptIn(ExperimentalFoundationApi::class)
+          @Composable fun AppDrawerScreen(viewModel: NexusViewModel, onBack: () -> Unit) {
+              val context = LocalContext.current; val apps by viewModel.apps.collectAsState(); val settings by viewModel.settings.collectAsState()
+              var query by remember { mutableStateOf("") }
+              val filtered = if (query.isBlank()) apps else apps.filter { it.label.contains(query, true) }
+              Column(Modifier.fillMaxSize().padding(16.dp)) {
+                  Row { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("All apps", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 8.dp, top = 10.dp)) }
+                  Spacer(Modifier.height(8.dp))
+                  OutlinedTextField(query, { query = it }, placeholder = { Text("Search") }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge)
+                  Spacer(Modifier.height(8.dp))
+                  LazyVerticalGrid(columns = GridCells.Fixed(settings.gridColumns), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                      items(filtered, key = { it.packageName }) { app ->
+                          val isFav = app.packageName in settings.favoriteApps
+                          AppIcon(
+                              label = if (isFav) "★ ${app.label}" else app.label, drawable = app.icon,
+                              modifier = Modifier.combinedClickable(
+                                  onClick = {
+                                      when (val r = viewModel.launchApp(app.packageName)) {
+                                          LaunchResult.Success -> Unit
+                                          LaunchResult.NoIntent -> Toast.makeText(context, "Cannot launch", Toast.LENGTH_SHORT).show()
+                                          is LaunchResult.Error -> Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
+                                      }
+                                  }, onLongClick = { viewModel.toggleFavoriteApp(app.packageName) }
+                              )
+                          )
+                      }
+                  }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/screens/DashboardScreen.kt
+          package com.nexus.launcher.ui.screens
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.ArrowBack
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.unit.dp
+          import com.nexus.launcher.NexusViewModel
+          import com.nexus.launcher.profile.ProfileManager
+          import kotlinx.coroutines.delay
+          @Composable fun DashboardScreen(viewModel: NexusViewModel, onBack: () -> Unit) {
+              val snapshot by viewModel.snapshot.collectAsState(); val recs by viewModel.recommendations.collectAsState(); val settings by viewModel.settings.collectAsState()
+              val interval = ProfileManager.configFor(settings.profile).monitoringIntervalMs
+              LaunchedEffect(Unit) { while (true) { viewModel.sampleMetrics(); delay(interval) } }
+              Column(Modifier.fillMaxSize().padding(16.dp)) {
+                  Row { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Performance", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 8.dp, top = 10.dp)) }
+                  Spacer(Modifier.height(12.dp))
+                  val mem = snapshot?.memory
+                  Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Column(Modifier.padding(16.dp)) {
+                      Text("Memory", style = MaterialTheme.typography.titleMedium)
+                      if (mem == null) Text("Unavailable") else Text("${(mem.usedRatio * 100).toInt()}% used (${mem.usedBytes / 1_000_000} / ${mem.totalBytes / 1_000_000} MB)")
+                  } }
+                  val batt = snapshot?.battery
+                  Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Column(Modifier.padding(16.dp)) {
+                      Text("Battery", style = MaterialTheme.typography.titleMedium)
+                      Text("Level: ${batt?.levelPercent?.let { "$it%" } ?: "Unavailable"}")
+                      Text("Temp: ${batt?.temperatureC?.let { "%.1f °C".format(it) } ?: "Unavailable"}")
+                  } }
+                  val thermal = snapshot?.thermal
+                  Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Column(Modifier.padding(16.dp)) {
+                      Text("Thermal", style = MaterialTheme.typography.titleMedium); Text(thermal?.label() ?: "Unavailable")
+                  } }
+                  Spacer(Modifier.height(12.dp))
+                  Text("Recommendations", style = MaterialTheme.typography.titleLarge)
+                  if (recs.isEmpty()) Text("No recommendations.") else recs.forEach { r ->
+                      Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) { Column(Modifier.padding(12.dp)) { Text(r.title, style = MaterialTheme.typography.titleSmall); Text(r.body, style = MaterialTheme.typography.bodySmall) } }
+                  }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/screens/GamingHubScreen.kt
+          package com.nexus.launcher.ui.screens
+          import android.widget.Toast
+          import androidx.compose.foundation.clickable
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.lazy.*
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.ArrowBack
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.unit.dp
+          import com.nexus.launcher.NexusViewModel
+          import com.nexus.launcher.data.LaunchResult
+          import com.nexus.launcher.profile.GamingProfile
+          import com.nexus.launcher.ui.components.AppIcon
+          @Composable fun GamingHubScreen(viewModel: NexusViewModel, onBack: () -> Unit) {
+              val context = LocalContext.current; val games by viewModel.games.collectAsState(); val settings by viewModel.settings.collectAsState()
+              Column(Modifier.fillMaxSize().padding(16.dp)) {
+                  Row { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Gaming Hub", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 8.dp, top = 10.dp)) }
+                  Spacer(Modifier.height(8.dp))
+                  Text("Profile", style = MaterialTheme.typography.titleMedium)
+                  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { GamingProfile.entries.forEach { p -> FilterChip(selected = settings.profile == p, onClick = { viewModel.setProfile(p) }, label = { Text(p.label) }) } }
+                  Text(viewModel.profileExplanation(settings.profile), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                  Spacer(Modifier.height(12.dp))
+                  LazyColumn {
+                      items(games, key = { it.packageName }) { game ->
+                          Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                              Row(Modifier.padding(8.dp)) {
+                                  Box(Modifier.clickable {
+                                      when (val r = viewModel.launchApp(game.packageName)) {
+                                          LaunchResult.Success -> Unit
+                                          LaunchResult.NoIntent -> Toast.makeText(context, "Cannot launch", Toast.LENGTH_SHORT).show()
+                                          is LaunchResult.Error -> Toast.makeText(context, r.message, Toast.LENGTH_SHORT).show()
+                                      }
+                                  }) { AppIcon(label = game.label, drawable = game.icon, showLabel = false) }
+                                  Spacer(Modifier.width(8.dp))
+                                  Column(Modifier.weight(1f).padding(top = 8.dp)) { Text(game.label, style = MaterialTheme.typography.titleSmall); Text("Profile: ${settings.profile.label}", style = MaterialTheme.typography.bodySmall) }
+                                  TextButton(onClick = { viewModel.toggleFavoriteGame(game.packageName) }) { Text(if (game.packageName in settings.favoriteGames) "★" else "☆") }
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/nexus/launcher/ui/screens/SettingsScreen.kt
+          package com.nexus.launcher.ui.screens
+          import android.content.Intent
+          import android.os.Build
+          import android.provider.Settings
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.ArrowBack
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.unit.dp
+          import com.nexus.launcher.NexusViewModel
+          @Composable fun SettingsScreen(viewModel: NexusViewModel, onBack: () -> Unit) {
+              val context = LocalContext.current; val settings by viewModel.settings.collectAsState()
+              Column(Modifier.fillMaxSize().padding(16.dp)) {
+                  Row { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Settings", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 8.dp, top = 10.dp)) }
+                  Spacer(Modifier.height(12.dp))
+                  Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
+                      Row { Text("Dark theme", modifier = Modifier.weight(1f)); Switch(settings.darkTheme, { viewModel.setDarkTheme(it) }) }
+                      Row { Text("Show clock", modifier = Modifier.weight(1f)); Switch(settings.showClock, { viewModel.setShowClock(it) }) }
+                  } }
+                  Spacer(Modifier.height(12.dp))
+                  Button(onClick = {
+                      val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                          val rm = context.getSystemService(android.app.role.RoleManager::class.java)
+                          if (rm != null && rm.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME) && !rm.isRoleHeld(android.app.role.RoleManager.ROLE_HOME)) rm.createRequestRoleIntent(android.app.role.RoleManager.ROLE_HOME) else Intent(Settings.ACTION_HOME_SETTINGS)
+                      } else Intent(Settings.ACTION_HOME_SETTINGS)
+                      context.startActivity(intent)
+                  }, modifier = Modifier.fillMaxWidth()) { Text("Set as Home App") }
+              }
+          }
+          EOF
+
+          # --- TESTS ---
+          cat << 'EOF' > app/src/test/java/com/nexus/launcher/ProfileManagerTest.kt
+          package com.nexus.launcher
+          import com.nexus.launcher.profile.GamingProfile
+          import com.nexus.launcher.profile.ProfileManager
+          import org.junit.Assert.*
+          import org.junit.Test
+          class ProfileManagerTest {
+              @Test fun balanced_uses_5s() = assertEquals(5000L, ProfileManager.configFor(GamingProfile.BALANCED).monitoringIntervalMs)
+              @Test fun gaming_disables_animations() = assertFalse(ProfileManager.configFor(GamingProfile.GAMING).animationsEnabled)
+          }
+          EOF
+
+          cat << 'EOF' > app/src/test/java/com/nexus/launcher/RecommendationEngineTest.kt
+          package com.nexus.launcher
+          import com.nexus.launcher.metrics.BatteryReading
+          import com.nexus.launcher.metrics.MemoryReading
+          import com.nexus.launcher.recommend.RecommendationEngine
+          import org.junit.Assert.assertTrue
+          import org.junit.Test
+          class RecommendationEngineTest {
+              @Test fun high_memory_triggers() = assertTrue(RecommendationEngine().evaluate(MemoryReading(100, 5, false), null).isNotEmpty())
+              @Test fun high_temp_triggers() = assertTrue(RecommendationEngine().evaluate(null, BatteryReading(50, 45f, false)).isNotEmpty())
+          }
+          EOF
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -43,7 +736,6 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      # YAHAN CHANGE HUA HAI: packages: '' add kiya hai
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -52,23 +744,17 @@ jobs:
       - name: Install SDK packages
         run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-      - name: Bootstrap Gradle wrapper if missing
-        working-directory: ${{ env.PROJECT_DIR }}
+      - name: Bootstrap Gradle wrapper
         run: |
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Wrapper jar missing, generating..."
-            wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip -O /tmp/gradle.zip
-            unzip -q /tmp/gradle.zip -d /tmp
-            /tmp/gradle-8.9/bin/gradle wrapper
-          fi
+          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip -O /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+          /tmp/gradle-8.9/bin/gradle wrapper
           chmod +x ./gradlew
 
       - name: Build debug APK
-        working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Run unit tests
-        working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew testDebugUnitTest --stacktrace --no-daemon
         continue-on-error: true
 
@@ -77,6 +763,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nexus-debug-apk
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: warn
           retention-days: 14
