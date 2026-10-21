@@ -43,8 +43,11 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      # YAHAN CHANGE HUA HAI: packages: '' add kiya hai
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       - name: Install SDK packages
         run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
